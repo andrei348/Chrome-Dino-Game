@@ -2,28 +2,28 @@
 #include <ncurses.h>
 #include <unistd.h>
 
-#define DELAY 50000 // Viteza jocului
+#define DELAY 50000 
 
 int main() {
-    int x = 10, y = 15;       // Poziția Dino
-    int cactusX = 60;         // Poziția Cactusului
+    int x = 10, y = 15;       
+    int cactusX = 60;         
     int score = 0;
     int isJumping = 0;
     int jumpStage = 0;
 
-    initscr();              // Inițializează ecranul
-    noecho();               // Nu afișa caracterele tastate
-    curs_set(FALSE);        // Ascunde cursorul
-    nodelay(stdscr, TRUE);  // Nu aștepta tasta (non-blocking)
-    keypad(stdscr, TRUE);   // Permite tastele speciale
+    initscr();      
+    noecho();       
+    curs_set(FALSE);   
+    nodelay(stdscr, TRUE); 
+    keypad(stdscr, TRUE);  
 
     while (1) {
         clear();
         
-        // Desenăm solul
+        
         mvhline(16, 0, '_', 80);
         
-        // Logica săriturii
+        
         int ch = getch();
         if ((ch == ' ' || ch == KEY_UP) && !isJumping) {
             isJumping = 1;
@@ -40,22 +40,21 @@ int main() {
             jumpStage++;
         }
 
-        // Mișcare cactus
+        
         cactusX--;
         if (cactusX < 0) {
             cactusX = 75;
             score++;
         }
 
-        // Desenare Dino și Cactus
+        
         mvprintw(y, x, "D"); 
         mvprintw(15, cactusX, "###");
 
-        // Afișare scor
+        
         mvprintw(2, 2, "Scor: %d", score);
         mvprintw(2, 30, "Apasă SPACE pentru săritură!");
 
-        // Verificare coliziune
         if (cactusX >= x && cactusX <= x + 1 && y == 15) {
             mvprintw(10, 30, "GAME OVER! Scor final: %d", score);
             refresh();
@@ -67,6 +66,6 @@ int main() {
         usleep(DELAY);
     }
 
-    endwin(); // Închide ncurses
+    endwin();
     return 0;
 }
