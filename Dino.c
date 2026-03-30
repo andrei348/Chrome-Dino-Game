@@ -19,8 +19,6 @@ int main() {
 
     while (1) {
         clear();
-        
-        
         mvhline(16, 0, '_', 80);
         
         
