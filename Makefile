@@ -1,6 +1,9 @@
 CC = gcc
 CFLAGS = -Wall
-LIBS = -lncurses
+
+# Aici am înlocuit -lncurses cu flag-urile necesare pentru Raylib
+# (Valabil pentru Linux. Dacă ești pe Windows/macOS, vezi notele de mai jos)
+LIBS = -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
 TARGET = dino_game
 
 all: $(TARGET)

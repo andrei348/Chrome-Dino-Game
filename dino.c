@@ -1,63 +1,129 @@
 #include "dino.h"
 
-void handleInput(int *isJumping, int *jumpStage) {
-    int ch = getch();
-    if ((ch == ' ' || ch == KEY_UP) && !(*isJumping)) {
-        *isJumping = 1;
-        *jumpStage = 0;
+const float GRAVITY = 0.62f;
+const float JUMP_FORCE = -12.5f;
+
+void handleInput(bool *isJumping, float *jumpVelocity, bool *isDucking) {
+    // Te poți apleca doar dacă ești pe sol
+    if (!(*isJumping)) {
+        if (IsKeyDown(KEY_DOWN)) {
+            *isDucking = true;
+        } else {
+            *isDucking = false;
+        }
+    }
+
+    // Sari doar dacă nu ești deja în aer sau aplecat
+    if ((IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_UP)) && !(*isJumping) && !(*isDucking)) {
+        *isJumping = true;
+        *jumpVelocity = JUMP_FORCE;
     }
 }
 
-void updateJump(int *y, int *isJumping, int *jumpStage) {
+void updateJump(float *y, bool *isJumping, float *jumpVelocity, bool isDucking) {
     if (*isJumping) {
-        if (*jumpStage < 7) (*y)--; 
-        else if (*jumpStage < 14) (*y)++; 
-        else {
-            *isJumping = 0;
+        *y += *jumpVelocity;     
+        *jumpVelocity += GRAVITY; 
+
+        if (*y >= DINO_Y_START) {
             *y = DINO_Y_START;
+            *isJumping = false;
+            *jumpVelocity = 0;
         }
-        (*jumpStage)++;
+    } else {
+        // Ajustăm Y-ul în funcție de starea de aplecat
+        *y = isDucking ? DINO_Y_DUCK_START : DINO_Y_START;
     }
 }
 
-void updateObstacle(int *cactusX, int *cactusWidth, int *cactusHeight, int *score) {
-    (*cactusX)--;
-    if (*cactusX < -5) {
-        *cactusX = 80 + (rand() % 20);
-        *cactusWidth = (rand() % 2) + 1;  
-        *cactusHeight = (rand() % 3) + 1; 
-        (*score)++;
-    }
-}
+void updateObstacle(float *obsX, float *obsY, ObstacleType *type, int *cactusCount, float gameSpeed) {
+    *obsX -= gameSpeed; 
 
-void updateSpeed(int score, int *currentDelay) {
-    int newDelay = INITIAL_DELAY - (score * 1000);
-    if (newDelay < MIN_DELAY) *currentDelay = MIN_DELAY;
-    else *currentDelay = newDelay;
-}
-
-int checkCollision(int dinoY, int cactusX, int cactusWidth, int cactusHeight) {
-    if (DINO_X >= cactusX && DINO_X < cactusX + cactusWidth) {
-        if (dinoY > DINO_Y_START - cactusHeight) {
-            return 1;
+    if (*obsX < -80) { // Resetare obstacol în afara ecranului
+        *obsX = SCREEN_WIDTH + (rand() % 300);
+        
+        // Alegem aleatoriu: 70% șanse Cactus, 30% șanse Pasăre
+        if (rand() % 100 < 70) {
+            *type = OBSTACLE_CACTUS;
+            *cactusCount = (rand() % 2) + 1; // 1 sau 2 cactuși random
+            *obsY = GROUND_Y - CACTUS_HEIGHT;
+        } else {
+            *type = OBSTACLE_BIRD;
+            *cactusCount = 1;
+            // Pasărea poate zbura la înălțime medie (necesită aplecare) sau mare (treci pe sub ea stând pe loc)
+            *obsY = (rand() % 2 == 0) ? (GROUND_Y - BIRD_HEIGHT - 25) : (GROUND_Y - BIRD_HEIGHT - 5);
         }
     }
-    return 0;
 }
 
-void drawGame(int dinoY, int cactusX, int cactusWidth, int cactusHeight, int score) {
-    clear();
-    mvhline(GROUND_Y, 0, '_', 80);
-    mvprintw(1, 2, "Scor: %d | Taste: SPACE / UP", score);
-    mvaddch(dinoY, DINO_X, 'D' | A_BOLD); 
-    for (int h = 0; h < cactusHeight; h++) {
-        for (int w = 0; w < cactusWidth; w++) {
-            int px = cactusX + w;
-            int py = DINO_Y_START - h;
-            if (px >= 0 && px < 80) {
-                mvaddch(py, px, '#' | A_BOLD);
+bool checkCollision(float dinoY, bool isDucking, float obsX, float obsY, ObstacleType type, int cactusCount) {
+    Rectangle dinoBox;
+    if (isDucking) {
+        dinoBox = (Rectangle){ DINO_X + 2, dinoY + 2, DINO_DUCK_WIDTH - 4, DINO_DUCK_HEIGHT - 4 };
+    } else {
+        dinoBox = (Rectangle){ DINO_X + 6, dinoY + 4, DINO_WIDTH - 12, DINO_HEIGHT - 6 };
+    }
+
+    if (type == OBSTACLE_CACTUS) {
+        // Lățimea totală a grupului depinde de câți cactuși s-au generat (1 sau 2)
+        float totalWidth = cactusCount * CACTUS_WIDTH;
+        Rectangle cactusBox = { obsX + 4, obsY, totalWidth - 8, CACTUS_HEIGHT };
+        return CheckCollisionRecs(dinoBox, cactusBox);
+    } else {
+        Rectangle birdBox = { obsX + 4, obsY + 6, BIRD_WIDTH - 8, BIRD_HEIGHT - 12 };
+        return CheckCollisionRecs(dinoBox, birdBox);
+    }
+}
+
+void drawGame(float dinoY, bool isDucking, float obsX, float obsY, ObstacleType type, int cactusCount,
+              int score, int highScore, Texture2D dinoLeft, Texture2D dinoRight, 
+              Texture2D duckLeft, Texture2D duckRight, Texture2D cactusTex, Texture2D birdTex, 
+              bool inMenu, bool isJumping) {
+    BeginDrawing();
+    ClearBackground(RAYWHITE); 
+
+    DrawLine(0, GROUND_Y, SCREEN_WIDTH, GROUND_Y, DARKGRAY);
+
+    if (inMenu) {
+        DrawText("T-REX RUNNER", SCREEN_WIDTH / 2 - MeasureText("T-REX RUNNER", 32) / 2, SCREEN_HEIGHT / 3, 32, GetColor(0x535353FF));
+        if ((int)(GetTime() * 2) % 2 == 0) {
+            DrawText("APASA SPACE PENTRU A INCEPE", SCREEN_WIDTH / 2 - MeasureText("APASA SPACE PENTRU A INCEPE", 16) / 2, SCREEN_HEIGHT / 2 + 30, 16, GRAY);
+        }
+    } 
+    else {
+        // Selectare textură dino în funcție de starea de aplecare și picioare
+        Texture2D currentDino;
+        bool step = ((int)(GetTime() * 10) % 2 == 0);
+
+        if (isDucking) {
+            currentDino = step ? duckLeft : duckRight;
+        } else {
+            currentDino = (isJumping || step) ? dinoLeft : dinoRight;
+        }
+
+        // Desenare Dino (adaptat la dimensiunea curentă)
+        float w = isDucking ? DINO_DUCK_WIDTH : DINO_WIDTH;
+        float h = isDucking ? DINO_DUCK_HEIGHT : DINO_HEIGHT;
+        DrawTexturePro(currentDino, (Rectangle){0, 0, currentDino.width, currentDino.height}, (Rectangle){DINO_X, dinoY, w, h}, (Vector2){0,0}, 0.0f, WHITE);
+
+        // Desenare Obstacol (Cactus sau Pasăre)
+        if (type == OBSTACLE_CACTUS) {
+            for (int i = 0; i < cactusCount; i++) {
+                DrawTexturePro(cactusTex, (Rectangle){0, 0, cactusTex.width, cactusTex.height}, 
+                               (Rectangle){obsX + (i * CACTUS_WIDTH), obsY, CACTUS_WIDTH, CACTUS_HEIGHT}, (Vector2){0,0}, 0.0f, WHITE);
             }
+        } else {
+            // Animație simplă aripi pasăre folosind inversarea texturii pe verticală (V-flip)
+            bool wingUp = ((int)(GetTime() * 6) % 2 == 0);
+            Rectangle birdSource = { 0, 0, (float)birdTex.width, (float)birdTex.height };
+            if (wingUp) birdSource.height *= -1; // Întoarce aripile invers în mod matematic
+            
+            DrawTexturePro(birdTex, birdSource, (Rectangle){obsX, obsY, BIRD_WIDTH, BIRD_HEIGHT}, (Vector2){0,0}, 0.0f, WHITE);
         }
+
+        // Scoruri
+        DrawText(TextFormat("SCOR: %05d  MAX: %05d", score, highScore), SCREEN_WIDTH - 280, 20, 20, GetColor(0x535353FF));
     }
-    refresh();
+
+    EndDrawing();
 }
