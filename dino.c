@@ -4,7 +4,7 @@ const float GRAVITY = 0.62f;
 const float JUMP_FORCE = -12.5f;
 
 void handleInput(bool *isJumping, float *jumpVelocity, bool *isDucking) {
-    // Te poți apleca doar dacă ești pe sol
+    
     if (!(*isJumping)) {
         if (IsKeyDown(KEY_DOWN)) {
             *isDucking = true;
@@ -13,7 +13,7 @@ void handleInput(bool *isJumping, float *jumpVelocity, bool *isDucking) {
         }
     }
 
-    // Sari doar dacă nu ești deja în aer sau aplecat
+    
     if ((IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_UP)) && !(*isJumping) && !(*isDucking)) {
         *isJumping = true;
         *jumpVelocity = JUMP_FORCE;
@@ -31,7 +31,7 @@ void updateJump(float *y, bool *isJumping, float *jumpVelocity, bool isDucking) 
             *jumpVelocity = 0;
         }
     } else {
-        // Ajustăm Y-ul în funcție de starea de aplecat
+        
         *y = isDucking ? DINO_Y_DUCK_START : DINO_Y_START;
     }
 }
@@ -39,18 +39,16 @@ void updateJump(float *y, bool *isJumping, float *jumpVelocity, bool isDucking) 
 void updateObstacle(float *obsX, float *obsY, ObstacleType *type, int *cactusCount, float gameSpeed) {
     *obsX -= gameSpeed; 
 
-    if (*obsX < -80) { // Resetare obstacol în afara ecranului
+    if (*obsX < -80) { 
         *obsX = SCREEN_WIDTH + (rand() % 300);
         
-        // Alegem aleatoriu: 70% șanse Cactus, 30% șanse Pasăre
         if (rand() % 100 < 70) {
             *type = OBSTACLE_CACTUS;
-            *cactusCount = (rand() % 2) + 1; // 1 sau 2 cactuși random
+            *cactusCount = (rand() % 2) + 1; 
             *obsY = GROUND_Y - CACTUS_HEIGHT;
         } else {
             *type = OBSTACLE_BIRD;
             *cactusCount = 1;
-            // Pasărea poate zbura la înălțime medie (necesită aplecare) sau mare (treci pe sub ea stând pe loc)
             *obsY = (rand() % 2 == 0) ? (GROUND_Y - BIRD_HEIGHT - 25) : (GROUND_Y - BIRD_HEIGHT - 5);
         }
     }
@@ -65,7 +63,6 @@ bool checkCollision(float dinoY, bool isDucking, float obsX, float obsY, Obstacl
     }
 
     if (type == OBSTACLE_CACTUS) {
-        // Lățimea totală a grupului depinde de câți cactuși s-au generat (1 sau 2)
         float totalWidth = cactusCount * CACTUS_WIDTH;
         Rectangle cactusBox = { obsX + 4, obsY, totalWidth - 8, CACTUS_HEIGHT };
         return CheckCollisionRecs(dinoBox, cactusBox);
@@ -91,7 +88,7 @@ void drawGame(float dinoY, bool isDucking, float obsX, float obsY, ObstacleType 
         }
     } 
     else {
-        // Selectare textură dino în funcție de starea de aplecare și picioare
+        
         Texture2D currentDino;
         bool step = ((int)(GetTime() * 10) % 2 == 0);
 
@@ -101,27 +98,25 @@ void drawGame(float dinoY, bool isDucking, float obsX, float obsY, ObstacleType 
             currentDino = (isJumping || step) ? dinoLeft : dinoRight;
         }
 
-        // Desenare Dino (adaptat la dimensiunea curentă)
         float w = isDucking ? DINO_DUCK_WIDTH : DINO_WIDTH;
         float h = isDucking ? DINO_DUCK_HEIGHT : DINO_HEIGHT;
         DrawTexturePro(currentDino, (Rectangle){0, 0, currentDino.width, currentDino.height}, (Rectangle){DINO_X, dinoY, w, h}, (Vector2){0,0}, 0.0f, WHITE);
 
-        // Desenare Obstacol (Cactus sau Pasăre)
         if (type == OBSTACLE_CACTUS) {
             for (int i = 0; i < cactusCount; i++) {
                 DrawTexturePro(cactusTex, (Rectangle){0, 0, cactusTex.width, cactusTex.height}, 
                                (Rectangle){obsX + (i * CACTUS_WIDTH), obsY, CACTUS_WIDTH, CACTUS_HEIGHT}, (Vector2){0,0}, 0.0f, WHITE);
             }
         } else {
-            // Animație simplă aripi pasăre folosind inversarea texturii pe verticală (V-flip)
+        
             bool wingUp = ((int)(GetTime() * 6) % 2 == 0);
             Rectangle birdSource = { 0, 0, (float)birdTex.width, (float)birdTex.height };
-            if (wingUp) birdSource.height *= -1; // Întoarce aripile invers în mod matematic
+            if (wingUp) birdSource.height *= -1;
             
             DrawTexturePro(birdTex, birdSource, (Rectangle){obsX, obsY, BIRD_WIDTH, BIRD_HEIGHT}, (Vector2){0,0}, 0.0f, WHITE);
         }
 
-        // Scoruri
+        
         DrawText(TextFormat("SCOR: %05d  MAX: %05d", score, highScore), SCREEN_WIDTH - 280, 20, 20, GetColor(0x535353FF));
     }
 

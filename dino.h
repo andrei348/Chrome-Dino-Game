@@ -9,10 +9,8 @@
 #define SCREEN_HEIGHT 400
 #define GROUND_Y 320          
 
-// Dimensiuni Dino normal
 #define DINO_WIDTH 44
 #define DINO_HEIGHT 47
-// Dimensiuni Dino aplecat (Duck)
 #define DINO_DUCK_WIDTH 55
 #define DINO_DUCK_HEIGHT 30
 
